@@ -42,7 +42,6 @@ class StorageManager {
         task.name = taskName
         
         completion(task)
-        
         saveContext()
     }
     
