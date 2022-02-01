@@ -13,6 +13,7 @@ class TaskListViewController: UITableViewController {
     private let storageManager = StorageManager.shared
     private let cellID = "cell"
     private var tasks: [Task] = []
+    private var editModeIsOn = false
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -48,18 +49,25 @@ class TaskListViewController: UITableViewController {
     }
     
     @objc private func addTask() {
-        showCreateTaskAlert(with: "New Task", and: "What do you want to do?")
+        showTaskAlert(title: "New Task", message: "What do you want to do?")
     }
     
-    private func showCreateTaskAlert(with title: String, and message: String) {
+    private func showTaskAlert(title: String, message: String, _ textFieldText: String? = nil, _ taskToChange: Task? = nil, _ indexPath: IndexPath? = nil) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
-            guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
-            self.storageManager.save(task) { task in
-                self.tasks.append(task)
-                
-                let indexPath = IndexPath(row: self.tasks.count - 1, section: 0)
-                self.tableView.insertRows(at: [indexPath], with: .automatic)
+            if self.editModeIsOn == false {
+                guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
+                self.storageManager.save(task) { task in
+                    self.tasks.append(task)
+                    
+                    let indexPath = IndexPath(row: self.tasks.count - 1, section: 0)
+                    self.tableView.insertRows(at: [indexPath], with: .automatic)
+                }
+            } else if self.editModeIsOn == true {
+                guard let changedTask = alert.textFields?.first?.text, !changedTask.isEmpty else { return }
+                guard let indexPath = indexPath else { return }
+                self.storageManager.change(taskToChange ?? self.tasks[indexPath.row], changedTask)
+                self.tableView.reloadRows(at: [indexPath], with: .automatic)
             }
         }
         
@@ -69,23 +77,9 @@ class TaskListViewController: UITableViewController {
         alert.addAction(cancelAction)
         alert.addTextField()
         
-        present(alert, animated: true)
-    }
-    
-    private func showChangeTaskAlert( _ textFieldText: String, _ taskToChange: Task, _ indexPath: IndexPath) {
-        let alert = UIAlertController(title: "Edit", message: "Edit your task", preferredStyle: .alert)
-        let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
-            guard let changedTask = alert.textFields?.first?.text, !changedTask.isEmpty else { return }
-            self.storageManager.change(taskToChange, changedTask)
-            self.tableView.reloadRows(at: [indexPath], with: .automatic)
+        if editModeIsOn == true {
+            alert.textFields?.first?.text = textFieldText
         }
-        
-        let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
-        
-        alert.addAction(saveAction)
-        alert.addAction(cancelAction)
-        alert.addTextField()
-        alert.textFields?.first?.text = textFieldText
         
         present(alert, animated: true)
     }
@@ -115,9 +109,11 @@ extension TaskListViewController {
         }
         
         let editAction = UIContextualAction(style: .normal, title: "Edit") { (action, view, completion) in
+            self.editModeIsOn = true
             let taskToChange = self.tasks[indexPath.row]
             guard let taskText = taskToChange.name else { return }
-            self.showChangeTaskAlert(taskText, taskToChange, indexPath)
+            
+            self.showTaskAlert(title: "Edit", message: "Edit your task", taskText, taskToChange, indexPath)
         }
         return UISwipeActionsConfiguration(actions: [deleteAction, editAction])
     }
