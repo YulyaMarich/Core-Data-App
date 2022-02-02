@@ -49,6 +49,7 @@ class TaskListViewController: UITableViewController {
     }
     
     @objc private func addTask() {
+        editModeIsOn = false
         showTaskAlert(title: "New Task", message: "What do you want to do?")
     }
     
@@ -71,8 +72,12 @@ class TaskListViewController: UITableViewController {
             }
         }
         
-        let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
-        
+        let cancelAction = UIAlertAction(title: "Cancel", style: .destructive) { _ in
+            guard let indexPath = indexPath else { return }
+            if self.editModeIsOn == true {
+                self.tableView.deselectRow(at: indexPath, animated: true)
+            }
+        }
         alert.addAction(saveAction)
         alert.addAction(cancelAction)
         alert.addTextField()
@@ -99,7 +104,7 @@ extension TaskListViewController {
     }
     
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { (action, view, completion) in
+        let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { (_, _, _) in
             let taskToDelete = self.tasks[indexPath.row]
             print(taskToDelete)
             self.storageManager.delete(taskToDelete)
@@ -108,10 +113,11 @@ extension TaskListViewController {
             self.tableView.deleteRows(at: [indexPath], with: .automatic)
         }
         
-        let editAction = UIContextualAction(style: .normal, title: "Edit") { (action, view, completion) in
+        let editAction = UIContextualAction(style: .normal, title: "Edit") { (_, _, isDone) in
             self.editModeIsOn = true
             let taskToChange = self.tasks[indexPath.row]
             guard let taskText = taskToChange.name else { return }
+            isDone(true)
             
             self.showTaskAlert(title: "Edit", message: "Edit your task", taskText, taskToChange, indexPath)
         }
